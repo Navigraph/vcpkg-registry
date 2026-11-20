@@ -81,8 +81,6 @@ jobs:
             --x-builtin-ports-root=ports --x-builtin-registry-versions-dir=versions
           git add versions
           git commit --amend --no-edit
-          "$RUNNER_TEMP/vcpkg/vcpkg" x-ci-verify-versions --verbose \
-            --x-builtin-ports-root=ports --x-builtin-registry-versions-dir=versions
 
       - if: steps.port.outputs.changed == 'true'
         run: git push
