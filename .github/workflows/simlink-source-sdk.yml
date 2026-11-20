@@ -1,0 +1,88 @@
+name: Update simlink-source-sdk
+
+on:
+  # Sent by the SDK's release workflow.
+  repository_dispatch:
+    types: [simlink-source-sdk-released]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version, without the leading v
+        required: true
+
+permissions:
+  contents: write
+
+# Each run commits on top of the last.
+concurrency:
+  group: ${{ github.workflow }}
+
+defaults:
+  run:
+    # Adds pipefail, so a failed download fails its step.
+    shell: bash
+
+jobs:
+  update:
+    name: Update the port
+    runs-on: ubuntu-26.04
+    env:
+      VERSION: ${{ github.event.client_payload.version || inputs.version }}
+      PORT: ports/simlink-source-sdk
+
+    steps:
+      # The latest main, since a queued run starts after the one before it pushed.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+
+      - name: Point the port at the release
+        id: port
+        run: |
+          if ! [[ $VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::\"$VERSION\" isn't a release version"
+            exit 1
+          fi
+          for rid in win-x64 linux-x64 osx; do
+            url="https://github.com/Navigraph/simlink-source-sdk/releases/download/v$VERSION/simlink-source-sdk-cpp-$VERSION-$rid.zip"
+            sha512=$(curl -fsSL "$url" | sha512sum | cut -d' ' -f1)
+            sed -i -E "s/^( +$rid ).*/\1$sha512/" "$PORT/portfile.cmake"
+            grep -q "^ *$rid $sha512$" "$PORT/portfile.cmake"
+          done
+          sed -i -E "s/(\"version-semver\": \")[^\"]*/\1$VERSION/" "$PORT/vcpkg.json"
+          grep -q "\"version-semver\": \"$VERSION\"" "$PORT/vcpkg.json"
+          # Already recorded, as when a release is dispatched twice.
+          if git diff --quiet; then
+            echo "::notice::simlink-source-sdk is already at $VERSION"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install vcpkg
+        if: steps.port.outputs.changed == 'true'
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git "$RUNNER_TEMP/vcpkg"
+          "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+
+      - name: Check the port installs
+        if: steps.port.outputs.changed == 'true'
+        run: |
+          "$RUNNER_TEMP/vcpkg/vcpkg" install simlink-source-sdk --overlay-ports=ports --triplet x64-linux
+
+      # x-add-version records the port's git tree, so the port is committed first.
+      - name: Record the version
+        if: steps.port.outputs.changed == 'true'
+        run: |
+          git config user.name navigraph-bot
+          git config user.email info@navigraph.com
+          git commit -am "feat: update simlink-source-sdk to $VERSION"
+          "$RUNNER_TEMP/vcpkg/vcpkg" x-add-version --all \
+            --x-builtin-ports-root=ports --x-builtin-registry-versions-dir=versions
+          git add versions
+          git commit --amend --no-edit
+          "$RUNNER_TEMP/vcpkg/vcpkg" x-ci-verify-versions --verbose \
+            --x-builtin-ports-root=ports --x-builtin-registry-versions-dir=versions
+
+      - if: steps.port.outputs.changed == 'true'
+        run: git push
