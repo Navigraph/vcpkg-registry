@@ -4,9 +4,9 @@ vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
 
 # Written by .github/workflows/simlink-source-sdk.yml.
 set(hashes
-    win-x64 0
-    linux-x64 0
-    osx 0
+    win-x64 cd0cbea39140fe27842a16042bd33cb6ade700663549955edb88beabfb87262cedac0981bbe7cae7b35918ed968bdd2aa5fcb7c2699f7c75f14c7582566e7620
+    linux-x64 6f3e9a9fcb8904aa658ef1d53f9887aa50f553502413845ed0de99336a1e7bfed36fa9c7a83c44352a5cf72a531d11628c31e8947a3d6406fae9215c751cb3c3
+    osx d776785f3b9d935bccfe7e534320ef79bc15808cd4fa83d33ff812ed97489119f9e98e99bdcac9b9f091ff50a118b5d3ba05f6c391575a1fc6c0aaf4da54e797
 )
 
 if(VCPKG_TARGET_IS_WINDOWS)
