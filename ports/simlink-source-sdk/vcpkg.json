@@ -1,6 +1,6 @@
 {
   "name": "simlink-source-sdk",
-  "version-semver": "1.0.0",
+  "version-semver": "1.0.1",
   "description": "Connects a flight simulator data source to Navigraph Simlink",
   "homepage": "https://github.com/Navigraph/simlink-source-sdk",
   "license": "MIT",
